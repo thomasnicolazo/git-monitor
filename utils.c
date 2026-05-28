@@ -13,11 +13,6 @@ typedef struct node_text {
     struct node_text *next;
 }Node_text;
 
-static const char *BLUE   = "\x1b[1;34m";
-static const char *GREEN  = "\x1b[0;32m";
-static const char *RED    = "\x1b[0;31m";
-static const char *CYAN   = "\x1b[0;36m";
-static const char *NORMAL = "\x1b[0m";
 
 Node *createNode(char *s){
     Node* first = malloc(sizeof(Node));
@@ -60,30 +55,3 @@ void freeSLL(Node *head){
         free(temp);
     }
 }
-
-
-/*
-int main (int argc, char** argv){
-    const Node *HEAD = NULL;
-    Node *n1 = malloc(sizeof(Node));
-    Node *n2 = malloc(sizeof(Node));
-    Node *n3 = malloc(sizeof(Node));
-    n1->directory = "hello ";
-    n2->directory = "hello ";
-    n3->directory = "hello ";
-    n1->next = n2;
-    n2->next = n3;
-    n3->next = NULL;
-    HEAD = n1;
-    int i = 0;
-    while(HEAD != NULL && i < 3){
-        printf("%s",HEAD->directory);
-        i++;
-        HEAD = HEAD->next;
-    }
-    free(n1);
-    free(n2);
-    free(n3);
-    return 0;
-}
-*/

@@ -20,12 +20,14 @@ void printDir(DIR *stream){
 void storeDir(Node **head,char *directory){
     DIR *streamd = opendir(directory);
     struct stat stats;
-    if (streamd == NULL) perror("can not open stream ");
-    //printDir(streamd);
+    if (streamd == NULL){
+        perror("can not open stream ");
+        exit(1);
+    } 
     struct dirent* tmp; 
     while ((tmp = readdir(streamd))){
         if(( 0 != strcmp("..",tmp->d_name)) && ( 0 != strcmp(".",tmp->d_name))){
-            char *concatString = malloc(sizeof(char*)*(strlen(tmp->d_name)+strlen(directory))+2);
+            char *concatString = malloc(sizeof(char)*(strlen(tmp->d_name)+strlen(directory)+2));
             sprintf(concatString,"%s/%s",directory,tmp->d_name); 
             if( 0 == stat(concatString,&stats) && S_ISDIR(stats.st_mode)){
                 if(*head == NULL){
@@ -45,17 +47,19 @@ void storeDir(Node **head,char *directory){
 
 int main (int argc, char** argv){
     Node *HEAD = NULL;
-    char *firstd = ".";
-    //HEAD = createNode(firstd);
-    printf("%s%s%s\n",BLUE, firstd,NORMAL);
-    Node *p_head = HEAD;
-    storeDir(&HEAD,firstd);
-# if 0
+    char *firstd = "/home/thomas/Documents/dev";
+    char *dirToSearch = ".git";
+    int dirToSearchSize = strlen(dirToSearch);
+    storeDir(&HEAD, firstd);
+    Node *current = HEAD;
     do{
-        storeDir(&p_head,p_head->directory);
-        p_head =  p_head->next;
-    }while(HEAD != NULL);
-#endif
+        int dir_size = strlen(current->directory);
+        if(dir_size != dirToSearchSize && (0 != strcmp(&(current->directory[dir_size - dirToSearchSize]),dirToSearch))){
+            storeDir(&current,current->directory);
+        }
+        storeDir(&current,current->directory);
+        current =  current->next;
+    }while(current != NULL);
     printSLL(HEAD); 
     freeSLL(HEAD);
     return 0;
