@@ -47,21 +47,32 @@ void storeDir(Node **head,char *directory){
 
 int main (int argc, char** argv){
     Node *HEAD = NULL;
+    Node *git_repo = NULL;
     char *firstd = "/home/thomas/Documents/project";
     char *dirToSearch = ".git";
     int dirToSearchSize = strlen(dirToSearch);
     storeDir(&HEAD, firstd);
     Node *current = HEAD;
-    printSLL(HEAD); 
     do{
         int dir_size = strlen(current->directory);
         if(dir_size != dirToSearchSize && (0 != strcmp(&(current->directory[dir_size - dirToSearchSize]),dirToSearch))){
             storeDir(&current,current->directory);
         }
-        //storeDir(&current,current->directory);
+        else{
+            char* tmp_string = malloc(sizeof(char)*strlen(current->directory) +1);
+            sprintf(tmp_string,"%.*s", dir_size-dirToSearchSize, current->directory);
+            if(git_repo == NULL){
+                git_repo = createNode(tmp_string);
+            }
+            else{
+                insertAtEnd(git_repo,tmp_string);
+            }
+            free(tmp_string);
+        }
         current =  current->next;
     }while(current != NULL);
-    printSLL(HEAD); 
+    printSLL(git_repo); 
     freeSLL(HEAD);
+    freeSLL(git_repo);
     return 0;
 }
