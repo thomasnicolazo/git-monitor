@@ -41,23 +41,24 @@ void storeDir(Node **head,char *directory){
             free(concatString);
         }
     }
-   closedir(streamd);
+    closedir(streamd);
 }
 
 
 int main (int argc, char** argv){
     Node *HEAD = NULL;
-    char *firstd = "/home/thomas/Documents/dev";
+    char *firstd = "/home/thomas/Documents/project";
     char *dirToSearch = ".git";
     int dirToSearchSize = strlen(dirToSearch);
     storeDir(&HEAD, firstd);
     Node *current = HEAD;
+    printSLL(HEAD); 
     do{
         int dir_size = strlen(current->directory);
         if(dir_size != dirToSearchSize && (0 != strcmp(&(current->directory[dir_size - dirToSearchSize]),dirToSearch))){
             storeDir(&current,current->directory);
         }
-        storeDir(&current,current->directory);
+        //storeDir(&current,current->directory);
         current =  current->next;
     }while(current != NULL);
     printSLL(HEAD); 
