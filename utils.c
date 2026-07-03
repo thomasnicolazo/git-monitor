@@ -14,6 +14,11 @@ typedef struct node_text {
 }Node_text;
 
 
+/*
+ * Allocate a new linked-list node and copy `s` into owned memory.
+ *
+ * The returned node must eventually be released with freeSLL().
+ */
 Node *createNode(char *s){
     Node* first = malloc(sizeof(Node));
     if (first == NULL){
@@ -25,6 +30,12 @@ Node *createNode(char *s){
     return first;
 }
 
+/*
+ * Append a new node containing `s` to the end of an existing linked list.
+ *
+ * `ssl` must point to the first node of a non-empty list. The string is copied
+ * by createNode(), so callers keep ownership of the original `s`.
+ */
 void insertAtEnd(Node *ssl,char *s){
     Node *HEAD = ssl;
     if(ssl == NULL){
@@ -37,6 +48,9 @@ void insertAtEnd(Node *ssl,char *s){
     HEAD->next = createNode(s);
 }
 
+/*
+ * Print each stored directory path, one per line.
+ */
 void printSLL(Node* head) {
     Node* temp = head;
     while (temp != NULL) {
@@ -46,6 +60,10 @@ void printSLL(Node* head) {
 }
 
 
+/*
+ * Free every node in the linked list, including each node's copied directory
+ * string.
+ */
 void freeSLL(Node *head){
     Node* temp = head;
     while (head != NULL) {
