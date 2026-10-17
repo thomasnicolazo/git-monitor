@@ -41,6 +41,58 @@ void freeSll(SllRepo **node){
     }
 }
 
+void trim_new_line(char *s){
+    int n = strlen(s);
+    while (n > 0 && (s[n-1] == '\n' || s[n-1] == '\r')) s[--n] = '\0';
+}
+
+void set_last_commit(SllRepo **node, char *path){
+    char buffer[COMMIT_SIZE] = {'\0'};
+    char command[COMMIT_SIZE] = {'\0'};
+    snprintf(command, COMMIT_SIZE, "cd %s 2>/dev/null && git log -1 --pretty=format:\"%%h %%s (%%cr)\"", path);
+    FILE *fp = popen(command,"r");
+    if(fp == NULL){
+        printf("Can not get commits from Git repository %s\n", path);
+        perror("popen");
+        return;
+    }
+    else{
+        if (fgets(buffer, sizeof(buffer),fp) == NULL) {printf("Can bot get commits from Git repository during copy %s\n", path);}
+        trim_new_line(buffer);
+        snprintf((*node)->node->last_commit,COMMIT_SIZE,"%s",buffer);
+    }
+    pclose(fp);
+}
+
+void set_info_repo(SllRepo **node, char *path){
+    char buffer[256];
+    char command[2048] = {'\0'};
+    snprintf(command, COMMIT_SIZE, "cd %s 2>/dev/null && git status --porcelain -b v1", path);
+    FILE *fp = popen(command,"r");
+    if(fp == NULL){
+        printf("Can bot get info from Git repository %s\n", path);
+        perror("popen");
+        return;
+    }
+    else{
+        /*
+        char count_loop = 0;
+        while((fgets(buffer, sizeof(buffer),fp) != NULL)){
+            count_loop++;
+        }
+        if(count_loop != 1){
+            printf("something goes wrong while processing info about the git repo %s, info is superioir to buffer\n", path);
+        }
+        */
+        if (fgets(buffer, sizeof(buffer),fp) == NULL) {printf("Can bot get info from Git repository during copy %s\n", path);}
+        (*node)->node->has_upstream = (strstr(buffer, "origin") != NULL);
+        (*node)->node->is_ahead = (strstr(buffer, "ahead") != NULL);
+        (*node)->node->is_behind = (strstr(buffer, "behind") != NULL);
+    }
+    pclose(fp);
+    return;
+}
+
 void set_name(SllRepo ** node,char * dir_path){
     int pos_to_trim = strlen(dir_path);
     char *name =(*node)->node->name;
@@ -76,9 +128,10 @@ void populate_new_node(SllRepo **node, char *dir_path){
         perror("Can not create node"); // perror have already a newline at the end
         exit(1);
     }
-    
     set_path(node, dir_path);
     set_name(node,dir_path);
+    set_info_repo(node, dir_path);
+    set_last_commit(node, dir_path);
 }
 
 int is_git_repo(const char *path_directory, struct dirent *directory){
@@ -179,9 +232,29 @@ void print(SllRepo *node){
     while(node !=  NULL){
         printf("%s\n",node->node->name);
         printf("%s\n",node->node->path);
+        printf("has upstream: %d\n",node->node->has_upstream);
+        printf("is ahead: %d\n",node->node->is_ahead);
+        printf("is behind: %d\n",node->node->is_behind);
+        printf("%s\n",node->node->last_commit);
         node = node->next;
     }
 }
+
+void trim_slash_arg_cli(char **arg){
+    if(arg == NULL){ perror("arg should not be NULL"); exit(1);}
+    int len = strlen(*arg);
+    if( (*arg)[len -1] == '/'){
+        (*arg)[len -1] = '\0';
+    }
+}
+
+/*
+##############################################################################################
+#                                                                                            #
+#                                         NCURSE                                             #
+#                                                                                            #
+##############################################################################################
+*/
 
 int main(int argc, char *argv[]){
     SllRepo *HEAD = NULL;
@@ -191,6 +264,7 @@ int main(int argc, char *argv[]){
     }
     else{
         for(int i=1; i < argc; i++){
+            trim_slash_arg_cli(&(argv[i]));
             search_git_repo_recursive(argv[i],&HEAD,&TAIL);
         }
     }
