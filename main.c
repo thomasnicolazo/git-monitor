@@ -10,6 +10,8 @@
 #define HASH_size 10
 #define COMMIT_SIZE 2048
 
+int Cnt_node = 0;
+
 typedef struct GitRepo {
     char name[SIZE_NAME];
     char path[PATH_SIZE];
@@ -132,6 +134,7 @@ void populate_new_node(SllRepo **node, char *dir_path){
     set_name(node,dir_path);
     set_info_repo(node, dir_path);
     set_last_commit(node, dir_path);
+    Cnt_node += 1;
 }
 
 int is_git_repo(const char *path_directory, struct dirent *directory){
@@ -268,7 +271,33 @@ int main(int argc, char *argv[]){
             search_git_repo_recursive(argv[i],&HEAD,&TAIL);
         }
     }
-    print(HEAD);
+    initscr();
+    cbreak();
+    noecho();
+    int x = 800, y = 1200;
+    getmaxyx(stdscr,y,x);
+    keypad(stdscr,true);
+    int c = 0;
+    int highlight = 0;
+    while(c != (int) 'q'){
+        refresh();
+        c = wgetch(stdscr);
+        switch(c){
+            case KEY_DOWN:
+                highlight = highlight + 1;
+                highlight = highlight % Cnt_node;
+                break;
+            case KEY_UP:
+                highlight = highlight - 1;
+                if (highlight < 0 ) highlight = highlight + Cnt_node; // fix moving upward because of negative modulus
+                highlight = highlight % Cnt_node;
+                break;
+            default:
+        }
+    }
+    clear();
+    endwin();
+    //print(HEAD);
     freeSll(&HEAD);
     return 0;
 }
