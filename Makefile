@@ -1,5 +1,5 @@
 all:
-	gcc -g main.c -o gitrepo -lncurses
+	gcc -g main.c -o gitrepo -lncursesw
 
 clean:
 	rm gitrepo
