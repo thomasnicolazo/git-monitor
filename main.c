@@ -4,11 +4,19 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <ncurses.h>
+#include <locale.h>
 
 #define SIZE_NAME 100
 #define PATH_SIZE 1024
 #define HASH_size 10
 #define COMMIT_SIZE 2048
+
+#define NAME_PERCENT   16
+#define PATH_PERCENT   40
+#define COMMIT_PERCENT 40
+#define STATUS_PERCENT 4
+
+#define COL_GAP 2
 
 int Cnt_node = 0;
 
@@ -87,12 +95,14 @@ void set_info_repo(SllRepo **node, char *path){
         }
         */
         if (fgets(buffer, sizeof(buffer),fp) == NULL) {printf("Can bot get info from Git repository during copy %s\n", path);}
+        (*node)->node->has_upstream = false;
+        (*node)->node->is_ahead = false;
+        (*node)->node->is_behind = false;
         (*node)->node->has_upstream = (strstr(buffer, "origin") != NULL);
         (*node)->node->is_ahead = (strstr(buffer, "ahead") != NULL);
         (*node)->node->is_behind = (strstr(buffer, "behind") != NULL);
     }
     pclose(fp);
-    return;
 }
 
 void set_name(SllRepo ** node,char * dir_path){
@@ -259,6 +269,126 @@ void trim_slash_arg_cli(char **arg){
 ##############################################################################################
 */
 
+typedef struct {
+    int ind_selected_for_higlight;
+    int ind_start_win;
+    int win_x;
+    int win_y;
+
+    // Column widths
+    int name_w;
+    int path_w;
+    int commit_w;
+    int status_w;
+
+    // Column positions
+    int name_x;
+    int path_x;
+    int commit_x;
+    int status_x;
+
+} UiState;
+
+static void init_colors_safe(void) {
+    if (!has_colors()) return;
+    start_color();
+    use_default_colors();
+    init_pair(1, COLOR_GREEN,  -1); // good / up to date
+    init_pair(2, COLOR_YELLOW, -1); // ahead/behind/no upstream
+    init_pair(3, COLOR_RED,    -1); // dirty / errors
+    init_pair(4, COLOR_CYAN,   -1); // headers
+}
+
+void update_columns(UiState *state)
+{
+    int old_win_x = state->win_x;
+    int old_win_y = state->win_y;
+    getmaxyx(stdscr,state->win_y,state->win_x);
+    if(old_win_x != state->win_x || old_win_y != state->win_y) clear();
+    int width = state->win_x;
+
+    // Column positions
+    state->name_x   = 0;
+    state->path_x   = width * NAME_PERCENT / 100;
+    state->commit_x = width * (NAME_PERCENT + PATH_PERCENT) / 100;
+    state->status_x = width * (NAME_PERCENT + PATH_PERCENT + COMMIT_PERCENT) / 100;
+
+    // Column widths (including the gap)
+    state->name_w   = state->path_x - state->name_x;
+    state->path_w   = state->commit_x - state->path_x;
+    state->commit_w = state->status_x - state->commit_x;
+    state->status_w = width - state->status_x;
+}
+
+void init_curse(UiState *State){
+    initscr();
+    cbreak();
+    noecho();
+    init_colors_safe();
+    update_columns(State);
+    keypad(stdscr,true);
+}
+
+void draw_header(UiState *state){
+    attron(COLOR_PAIR(4) | A_BOLD);
+    mvhline(0, 0, ' ', state->win_x);
+    mvprintw(0, 1, "Git Repositories");
+    attroff(COLOR_PAIR(4) | A_BOLD);
+    attron(A_BOLD);
+    mvprintw(2, state->name_x,   "NAME");
+    mvprintw(2, state->path_x,   "PATH");
+    mvprintw(2, state->commit_x, "LAST COMMIT");
+    mvprintw(2, state->status_x, "STATUS");
+    attroff(A_BOLD);
+    mvhline(3, 0, ACS_HLINE, state->win_x);
+}
+
+void draw_body(SllRepo *p_node,UiState *p_state){
+    SllRepo *p_tmp = p_node;
+    for(int i=p_state->ind_start_win;i<Cnt_node; i++){
+        int y = i + 4;
+        if (i == p_state->ind_selected_for_higlight) attron(A_REVERSE);
+        /*
+        The format %-28.28s means:
+        - - → Left-align the text.
+        - 28 → Use a minimum width of 28 characters.
+        - .28 → Print at most 28 bytes from the string.
+        */
+        mvprintw(y, p_state->name_x,
+                 "%-*.*s",
+                 p_state->name_w - COL_GAP,
+                 p_state->name_w - COL_GAP,
+                 p_tmp->node->name);
+
+        mvprintw(y, p_state->path_x,
+                 "%-*.*s",
+                 p_state->path_w - COL_GAP,
+                 p_state->path_w - COL_GAP,
+                 p_tmp->node->path);
+
+        mvprintw(y, p_state->commit_x,
+                 "%-*.*s",
+                 p_state->commit_w - COL_GAP,
+                 p_state->commit_w - COL_GAP,
+                 p_tmp->node->last_commit);
+
+        if (i == p_state->ind_selected_for_higlight)
+            attroff(A_REVERSE);
+
+        p_tmp = p_tmp->next;
+    }
+
+    mvhline(p_state->win_y - 1, 0, ' ', p_state->win_x);
+    attron(A_DIM);
+    mvprintw(p_state->win_y - 1, 1, "↑/↓ move  PgUp/PgDn scroll   q quit   total: %u", Cnt_node);// unsigned integer
+    attroff(A_DIM);
+}
+
+void drawUI(SllRepo *p_node, UiState *p_state){
+    draw_header(p_state);
+    draw_body(p_node, p_state);
+}
+
 int main(int argc, char *argv[]){
     SllRepo *HEAD = NULL;
     SllRepo *TAIL = NULL;
@@ -271,29 +401,32 @@ int main(int argc, char *argv[]){
             search_git_repo_recursive(argv[i],&HEAD,&TAIL);
         }
     }
-    initscr();
-    cbreak();
-    noecho();
-    int x = 800, y = 1200;
-    getmaxyx(stdscr,y,x);
-    keypad(stdscr,true);
+    setlocale(LC_ALL, "");
+    UiState State;
+    State.ind_start_win = 0;
+    State.win_x = 800; State.win_y = 1200;
+    init_curse(&State);
     int c = 0;
     int highlight = 0;
     while(c != (int) 'q'){
-        refresh();
+        drawUI(HEAD, &State);
         c = wgetch(stdscr);
         switch(c){
             case KEY_DOWN:
-                highlight = highlight + 1;
-                highlight = highlight % Cnt_node;
+                State.ind_selected_for_higlight++;
                 break;
             case KEY_UP:
-                highlight = highlight - 1;
-                if (highlight < 0 ) highlight = highlight + Cnt_node; // fix moving upward because of negative modulus
-                highlight = highlight % Cnt_node;
+                State.ind_selected_for_higlight--;
+                if(State.ind_selected_for_higlight)
                 break;
             default:
         }
+        if(State.ind_selected_for_higlight < 0) State.ind_selected_for_higlight = Cnt_node - 1;
+        State.ind_selected_for_higlight = abs(State.ind_selected_for_higlight % Cnt_node);
+        if(State.ind_selected_for_higlight > State.win_y) State.ind_start_win++;
+        if(State.ind_selected_for_higlight < 0) State.ind_start_win--;
+        update_columns(&State);
+        refresh();
     }
     clear();
     endwin();
